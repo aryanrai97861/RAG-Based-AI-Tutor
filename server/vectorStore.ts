@@ -1,10 +1,6 @@
 // In-memory vector store for RAG implementation
 import { generateEmbedding, cosineSimilarity } from "./gemini";
 import type { ImageMetadata } from "@shared/schema";
-import bellImage from "../attached_assets/generated_images/Bell_vibration_diagram_64db699e.png";
-import soundWaveImage from "../attached_assets/generated_images/Sound_wave_propagation_81f13b6e.png";
-import earImage from "../attached_assets/generated_images/Human_ear_anatomy_8e95a918.png";
-import frequencyImage from "../attached_assets/generated_images/Frequency_and_pitch_2b6f9bd6.png";
 
 interface TextChunk {
   id: string;
@@ -26,41 +22,57 @@ interface ImageWithEmbedding extends ImageMetadata {
 class VectorStore {
   private topics: Map<string, Topic> = new Map();
   private images: ImageWithEmbedding[] = [];
+  private initPromise: Promise<void> | null = null;
+  private isInitialized: boolean = false;
 
   constructor() {
-    this.initializeImages();
+    // Don't initialize immediately - wait for first use
   }
 
-  private async initializeImages() {
+  private async initializeImages(): Promise<void> {
     // Image metadata for sound-related educational content
     const imageMetadata: ImageMetadata[] = [
       {
         id: "img_001",
-        filename: "Bell_vibration_diagram_64db699e.png",
-        title: "Bell Vibration",
-        keywords: ["bell", "vibration", "sound", "oscillation", "movement"],
-        description: "Educational diagram showing bell vibration and sound wave generation",
+        filename: "SchoolBellVibration.png",
+        title: "School Bell Vibration",
+        keywords: ["bell", "vibration", "sound", "oscillation", "movement", "school"],
+        description: "Educational diagram showing school bell vibration and sound wave generation",
       },
       {
         id: "img_002",
-        filename: "Sound_wave_propagation_81f13b6e.png",
-        title: "Sound Wave Propagation",
-        keywords: ["sound", "wave", "propagation", "amplitude", "wavelength", "frequency"],
-        description: "Diagram illustrating sound wave propagation with amplitude and wavelength",
+        filename: "CompressionAndRefraction.png",
+        title: "Compression and Refraction",
+        keywords: ["sound", "wave", "compression", "rarefaction", "propagation", "medium"],
+        description: "Diagram illustrating sound wave compression and rarefaction in a medium",
       },
       {
         id: "img_003",
-        filename: "Human_ear_anatomy_8e95a918.png",
-        title: "Human Ear Anatomy",
-        keywords: ["ear", "anatomy", "hearing", "auditory", "cochlea", "eardrum"],
-        description: "Anatomical diagram of human ear showing outer, middle, and inner ear",
+        filename: "VocalCordsDiagram.png",
+        title: "Vocal Cords Diagram",
+        keywords: ["vocal", "cords", "voice", "larynx", "speech", "human", "anatomy"],
+        description: "Anatomical diagram of vocal cords showing how humans produce sound",
       },
       {
         id: "img_004",
-        filename: "Frequency_and_pitch_2b6f9bd6.png",
-        title: "Frequency and Pitch",
-        keywords: ["frequency", "pitch", "hertz", "sound", "musical", "notes"],
-        description: "Educational diagram showing relationship between frequency and pitch",
+        filename: "MusicalInstrumentsVibrationChart.png",
+        title: "Musical Instruments Vibration",
+        keywords: ["music", "instruments", "vibration", "sound", "pitch", "frequency"],
+        description: "Chart showing how different musical instruments produce sound through vibration",
+      },
+      {
+        id: "img_005",
+        filename: "ReflectionOfSound.png",
+        title: "Reflection of Sound",
+        keywords: ["reflection", "echo", "sound", "wave", "surface", "bounce"],
+        description: "Diagram illustrating how sound waves reflect off surfaces creating echoes",
+      },
+      {
+        id: "img_006",
+        filename: "VibrationOfRubberBand.png",
+        title: "Rubber Band Vibration",
+        keywords: ["rubber", "band", "vibration", "sound", "elastic", "oscillation"],
+        description: "Educational diagram showing rubber band vibration producing sound waves",
       },
     ];
 
@@ -74,6 +86,16 @@ class VectorStore {
         console.error(`Failed to embed image ${metadata.id}:`, error);
       }
     }
+    
+    this.isInitialized = true;
+    console.log(`Initialized ${this.images.length} images with embeddings`);
+  }
+
+  async ensureInitialized(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = this.initializeImages();
+    }
+    await this.initPromise;
   }
 
   async addTopic(
@@ -120,6 +142,8 @@ class VectorStore {
   }
 
   async findRelevantImage(query: string): Promise<ImageMetadata | null> {
+    await this.ensureInitialized();
+    
     if (this.images.length === 0) {
       return null;
     }
@@ -156,7 +180,8 @@ class VectorStore {
     return null;
   }
 
-  getAllImages(): ImageMetadata[] {
+  async getAllImages(): Promise<ImageMetadata[]> {
+    await this.ensureInitialized();
     return this.images.map(({ embedding, ...metadata }) => metadata);
   }
 }

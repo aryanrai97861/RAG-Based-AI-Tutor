@@ -1,9 +1,16 @@
 // Gemini AI service for RAG implementation
-// Reference: javascript_gemini blueprint
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { GoogleGenAI } from "@google/genai";
+let genAI: GoogleGenerativeAI;
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+function getGenAI() {
+  if (!genAI) {
+    const apiKey = process.env.GEMINI_API_KEY || "";
+    console.log(`🔑 Using API Key: ${apiKey ? apiKey.substring(0, 10) + '...' + apiKey.substring(apiKey.length - 4) : 'MISSING'}`);
+    genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return genAI;
+}
 
 export interface EmbeddingResult {
   embedding: number[];
@@ -11,12 +18,15 @@ export interface EmbeddingResult {
 
 export async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    const model = ai.models.get("text-embedding-004");
-    const result = await model.embedContent({
-      content: text,
-    });
+    const model = getGenAI().getGenerativeModel({ model: "text-embedding-004" });
+    const result = await model.embedContent(text);
+    const embedding = result.embedding;
     
-    return result.embedding?.values || [];
+    if (!embedding || !embedding.values) {
+      throw new Error("No embeddings returned");
+    }
+    
+    return embedding.values;
   } catch (error) {
     console.error("Error generating embedding:", error);
     throw new Error(`Failed to generate embedding: ${error}`);
@@ -38,12 +48,12 @@ Student Question: ${query}
 
 Provide a helpful, accurate answer based only on the information in the context. If the context doesn't contain enough information to answer the question, say so.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: prompt,
-    });
-
-    return response.text || "I couldn't generate a response. Please try again.";
+    const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-pro" });
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+    
+    return text || "I couldn't generate a response. Please try again.";
   } catch (error) {
     console.error("Error generating answer:", error);
     throw new Error(`Failed to generate answer: ${error}`);

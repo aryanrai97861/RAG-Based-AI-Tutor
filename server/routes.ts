@@ -1,7 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
-import pdfParse from "pdf-parse";
 import { randomUUID } from "crypto";
 import { vectorStore } from "./vectorStore";
 import { generateAnswer } from "./gemini";
@@ -14,6 +13,9 @@ import {
 import { z } from "zod";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -51,9 +53,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "File must be a PDF" });
       }
 
-      // Extract text from PDF
-      const pdfData = await pdfParse(req.file.buffer);
-      const text = pdfData.text;
+      // Extract text from PDF - convert Buffer to Uint8Array for pdf-parse
+      const { PDFParse } = await import("pdf-parse");
+      const uint8Array = new Uint8Array(req.file.buffer);
+      const parser = new PDFParse(uint8Array);
+      const textResult = await parser.getText();
+      const text = textResult.text;
 
       if (!text || text.trim().length === 0) {
         return res.status(400).json({ error: "No text found in PDF" });
@@ -137,14 +142,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { filename } = req.params;
       
-      // Serve from attached_assets/generated_images
+      // Serve from attached_assets/Sound
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
       const imagePath = path.join(
         __dirname,
         "..",
         "attached_assets",
-        "generated_images",
+        "Sound",
         filename
       );
 
@@ -156,9 +161,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/images - Get all image metadata
-  app.get("/api/images", (req, res) => {
+  app.get("/api/images", async (req, res) => {
     try {
-      const images = vectorStore.getAllImages();
+      const images = await vectorStore.getAllImages();
       res.json({ images });
     } catch (error) {
       console.error("Error fetching images:", error);

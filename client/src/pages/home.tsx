@@ -65,7 +65,9 @@ export default function Home() {
       });
     },
     onSuccess: (data) => {
-      setMessages((prev) => [...prev, data.message]);
+      if (data.message) {
+        setMessages((prev) => [...prev, data.message]);
+      }
     },
     onError: (error) => {
       toast({
@@ -232,7 +234,7 @@ export default function Home() {
             </div>
           )}
 
-          {messages.map((message) => (
+          {messages.filter(m => m && m.role).map((message) => (
             <div
               key={message.id}
               className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
